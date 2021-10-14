@@ -1,5 +1,7 @@
 from flask import Flask, request, Response
 import json
+
+from flask.wrappers import Response
 import dbcreds
 import mariadb
 
@@ -27,8 +29,13 @@ def connection():
             return ('Connection failed')
     
     return (conn,cursor)
+
+@app.route('/')
+def index():
+    return ("Hello")
+
     
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/api/blog', methods=['GET', 'POST', 'PATCH', 'DELETE'])
 def create_post():
     if (request.method == 'POST'):
         conn = None
@@ -68,16 +75,110 @@ def create_post():
             if (conn != None):
                 conn.rollback()
                 conn.close()
+    return(resp)
 
-def get_user_post():
+def getUserPost():
     if (request.method == 'GET'):
-        get_post = request.args.get('content')
-        resp = {
-            "userPost" : get_post
-        }
-        print()
-        return Response(json.dumps(resp),
-                        mimetype="application/json",
-                        status=200)
+        conn = None
+        cursor = None
+        id = request.args.get('id')
 
+        try:
+            (conn, cursor) = connection()
+            if id:
+                cursor.execute("SELECT * FROM blog WHERE id=?", [id,])
+                result = cursor.fetchall()
+                return Response(json.dumps(result, defeault=str),
+                                mimetype="application/json",
+                                status=200)
+            else:
+                return("User post not found")
 
+        except mariadb.DataError:
+            print("Something wrong with your data")
+        except mariadb.OperationalError:
+            print("Operational error on the connection")
+        except mariadb.ProgrammingError:
+            print("Your query was wrong")
+        except mariadb.IntegrityError:
+            print("Your query would have broken the database and we stopped it")
+        except:
+            print("Something went wrong")
+
+        finally:
+            if (cursor != None):
+                cursor.close()
+
+            if (conn != None):
+                conn.rollback()
+                conn.close()
+    return(result)
+
+def editPost():
+    if (request.method == 'PATCH'):
+        conn = None
+        cursor = None 
+        updateContent = request.json.get('content')
+
+        try:
+            (conn, cursor) = connection()
+            cursor.eecute("UPDATE blog SET content=? WHERE id=?", [id, updateContent])
+            conn.commit()
+            resp = {
+                "newContent" : updateContent
+            }
+            return Response(json.dumps(resp),
+                            mimetype="applications/json",
+                            status=200)
+        except mariadb.DataError:
+            print("Something wrong with your data")
+        except mariadb.OperationalError:
+            print("Operational error on the connection")
+        except mariadb.ProgrammingError:
+            print("Your query was wrong")
+        except mariadb.IntegrityError:
+            print("Your query would have broken the database and we stopped it")
+        except:
+            print("Something went wrong")
+
+        finally:
+            if (cursor != None):
+                cursor.close()
+
+            if (conn != None):
+                conn.rollback()
+                conn.close()  
+    return(resp)
+
+def deletePost():
+    if (request.method == 'DELETE'):
+        conn = None
+        cursor = None 
+        id = request.json.get('id')
+
+        try:
+            (conn, cursor) = connection()
+            cursor.execute("DELETE FROM blog WHERE id=?", [id,])
+            conn.commit()
+            return Response("Post deleted",
+                            mimetype="text/plain",
+                            status=200)
+        except mariadb.DataError:
+            print("Something wrong with your data")
+        except mariadb.OperationalError:
+            print("Operational error on the connection")
+        except mariadb.ProgrammingError:
+            print("Your query was wrong")
+        except mariadb.IntegrityError:
+            print("Your query would have broken the database and we stopped it")
+        except:
+            print("Something went wrong")
+
+        finally:
+            if (cursor != None):
+                cursor.close()
+
+            if (conn != None):
+                conn.rollback()
+                conn.close()  
+    return("Deleted")
