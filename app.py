@@ -75,7 +75,8 @@ def create_post():
             if (conn != None):
                 conn.rollback()
                 conn.close()
-    return(resp)
+    else:
+        return("Post unsuccessful")
 
 def getUserPost():
     if (request.method == 'GET'):
